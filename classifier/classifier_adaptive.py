@@ -3,12 +3,30 @@ Code for the adaptive classifier with the differentiable STFT front-end
 This will be trained on our test input signal, alternating sinusoids of 2 frequencies
 """
 # Dependencies
+import numpy as np
 from tqdm import tqdm
 import haiku as hk
 import jax.numpy as jnp
 import jax
 import optax
 from dstft import diff_stft
+import sys
+
+# Order of input arguments:
+"""
+1 : list of N to initialize classifier with
+2 : learning rate
+3 : number of epochs
+"""
+
+n = len(sys.argv[1]) 
+a = sys.argv[1][1:n-1] 
+a = a.split(',') 
+  
+list_N = [int(i) for i in a]
+lr = float(sys.argv[2])
+nepochs = int(sys.argv[3])
+
 
 # Construct the test signal to classify:
 # Sampling rate
@@ -89,8 +107,8 @@ def update(
 
 # Training the Classifier
 nH_evol_fin = []
-list_N = [10,15,20,25,30,45,55,65,70]
-opt = optax.adam(1e-1)
+# list_N = [10,15,20,25,30,45,55,65,70]
+opt = optax.adam(lr)
 rng = jax.random.PRNGKey(42)
 
 for Ni in list_N:
@@ -101,7 +119,7 @@ for Ni in list_N:
     
     pfdict = 0
     nH = []
-    for t in tqdm(range(2000)):
+    for t in tqdm(range(nepochs)):
         param_dict, opt_state = update(param_dict, opt_state, signal)
         pfdict = param_dict
         nH.append(6*param_dict["s"])
@@ -109,10 +127,13 @@ for Ni in list_N:
 
 # Plotting the evolution of the window length across epochs for different initializations
 import matplotlib.pyplot as pyp
+import matplotlib
+matplotlib.rcParams.update({'font.size': 16})
 
 pyp.figure()
+pyp.title('Convergence from varying initial values')
 pyp.xlabel('Epoch')
 pyp.ylabel('Window Length (N)')
 for l,i in enumerate(nH_evol_fin):
-    pyp.plot(i)
+    pyp.plot(i,'b')
 pyp.show()

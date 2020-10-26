@@ -4,12 +4,29 @@ This will be trained on our test input signal, alternating sinusoids of 2 freque
 """
 
 # Dependencies
+import numpy as np
 from tqdm import tqdm
 import haiku as hk
 import jax.numpy as jnp
 import jax
 import optax
 from dstft import diff_stft
+import sys
+
+# Order of input arguments:
+"""
+1 : list of N to initialize classifier with
+2 : learning rate
+3 : number of epochs
+"""
+
+n = len(sys.argv[1]) 
+a = sys.argv[1][1:n-1] 
+a = a.split(',') 
+  
+list_N = [int(i) for i in a]
+lr = float(sys.argv[2])
+nepochs = int(sys.argv[3])
 
 # Construct the test signal to classify:
 # Sampling rate
@@ -33,7 +50,7 @@ I2 = np.arange(0.2,Nr*P,P)
 # Constructing the classifier
 def forward(x):
     mlp = hk.Sequential([
-    hk.Linear(2), jax.nn.log_softmax
+    hk.Linear(2), jax.nn.softmax
     ])
     return mlp(x)
 
@@ -57,9 +74,9 @@ def update(
 # Training the classifier
 loss_arrs_N = []
 loss_fin = []
-N_sweep = [5,10,40,50,60,70]
+N_sweep = list_N
 
-opt = optax.adam(1e-1)
+opt = optax.adam(lr)
 rng = jax.random.PRNGKey(42)
 
 for N in N_sweep:
@@ -93,7 +110,7 @@ for N in N_sweep:
     
     paramsf = 0
     liter = []
-    for t in tqdm(range(2000)):
+    for t in tqdm(range(nepochs)):
         params, opt_state = update(params, opt_state, xzp.T, l_c)
         paramsf = params
         liter.append(loss_fn(paramsf,xzp.T, l_c) + (0.6/N))
@@ -103,6 +120,7 @@ for N in N_sweep:
 
 # Plotting the spectrograms and final loss for the different N's
 costs_fin = loss_fin
+import matplotlib.pyplot as pyp
 import matplotlib
 from matplotlib.pylab import register_cmap
 cdict = {
@@ -115,7 +133,7 @@ register_cmap(name='InvBlueA', data=cdict)
 matplotlib.rcParams.update({'font.size': 16})
 def plot_various_window_size(sigi):
     pyp.figure(figsize=(22, 4))
-    szs = [5,10,40,50,60,70]
+    szs = N_sweep
     for i in range(len(szs)):
         sz, hp = szs[i], szs[i]
         a = diff_stft(sigi,s = szs[i]*1.0/6,hf = 1)
@@ -125,4 +143,4 @@ def plot_various_window_size(sigi):
         pyp.ylabel('Frequency Bin')
     pyp.gcf().tight_layout()
 
-plot_various_window_size(signal)
+plot_various_window_size(signal[:5*one_period.shape[0]])
